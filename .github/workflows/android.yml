@@ -12,19 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Find and extract project ZIP
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' | head -n 1)
-          test -n "$ZIP_FILE"
-          mkdir source
-          unzip -q "$ZIP_FILE" -d source
-          GRADLE_FILE=$(find source -name settings.gradle -o -name settings.gradle.kts | head -n 1)
-          test -n "$GRADLE_FILE"
-          echo "PROJECT_DIR=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
+      - name: Get project
+        uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -35,14 +24,27 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Extract project ZIP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' | head -n 1)
+          test -n "$ZIP_FILE"
+          mkdir source
+          unzip -q "$ZIP_FILE" -d source
+          GRADLE_FILE=$(find source \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+          test -n "$GRADLE_FILE"
+          echo "PROJECT_DIR=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
+
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
-          gradle assembleDebug
+          gradle assembleDebug -Pkotlin.jvm.target.validation.mode=warning
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: CODM-FPS-Helper-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: source/**/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           
