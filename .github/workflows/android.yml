@@ -1,0 +1,48 @@
+
+name: Build CODM FPS Helper APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '*.zip'
+      - '.github/workflows/android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find and extract project ZIP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' | head -n 1)
+          test -n "$ZIP_FILE"
+          mkdir source
+          unzip -q "$ZIP_FILE" -d source
+          GRADLE_FILE=$(find source -name settings.gradle -o -name settings.gradle.kts | head -n 1)
+          test -n "$GRADLE_FILE"
+          echo "PROJECT_DIR=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODM-FPS-Helper-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          
